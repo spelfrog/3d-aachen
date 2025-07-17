@@ -28,13 +28,9 @@ def generate_faces(width, height, offset=0):
             faces.extend([[v0, v1, v2], [v1, v3, v2]])
     return faces
 
-def heightmap_to_mesh(heightmap, scale_x, scale_y, scale_z, wall_height):
+def heightmap_to_mesh(heightmap, scale_x, scale_y, scale_z, min_height):
     """Converts heightmap to 3D mesh with walls and bottom."""
     height, width = heightmap.shape
-    min_height = np.min(heightmap) * scale_z - wall_height
-    # round the minimum height to a multiple of 5
-    min_height = np.floor(min_height / 5) * 5
-    print(f"Minimum height to: {min_height}")
 
 
     # Generate vertices
@@ -89,17 +85,62 @@ def subdivide_heightmap(heightmap):
         'bottom_right': heightmap[mid_h:, mid_w:]
     }
 
+def preprocess_heightmap(heightmap):
+    """
+    Preprocesses the heightmap to smooth out errors.
+    If a pixel significantly differs from its 8 neighbors, replace it with the average of the neighbors.
+    """
+    height, width = heightmap.shape
+    processed = heightmap.copy()
+    number_of_fixed_pixels = 0
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            # Extract the 8 neighbors
+            neighbors = [
+                heightmap[y - 1, x - 1], heightmap[y - 1, x], heightmap[y - 1, x + 1],
+                heightmap[y, x - 1],                     heightmap[y, x + 1],
+                heightmap[y + 1, x - 1], heightmap[y + 1, x], heightmap[y + 1, x + 1]
+            ]
+            center = heightmap[y, x]
+            min_neighbors = np.min(neighbors)
+            max_neighbors = np.max(neighbors)
+
+            # abs difference from the average of neighbors
+            diff = abs(max_neighbors - min_neighbors)
+            if diff > 2.5:
+                continue
+
+            avg_neighbors = np.mean(neighbors)
+
+            # Replace the center pixel if it significantly differs from the neighbors
+            #if abs(center - avg_neighbors) > 2:
+            processed[y, x] = avg_neighbors
+            number_of_fixed_pixels += 1
+
+    if number_of_fixed_pixels > 0:
+        print(f"Preprocessed {number_of_fixed_pixels} pixels to smooth out errors.")
+
+    return processed
+
 def convert_tiff_to_stl(input_path, output_path, scale_x, scale_y, scale_z, wall_height):
     """Main function for converting TIFF to 4 STL files."""
     heightmap = read_tiff_heightmap(input_path)
     if heightmap is None:
         return False
 
+    print("Preprocessing heightmap to smooth out errors...")
+    heightmap = preprocess_heightmap(heightmap)
+    print("Preprocessing complete.")
+
+    min_height = np.min(heightmap) * scale_z - wall_height
+    min_height = np.floor(min_height)
+    print(f"Minimum height to: {min_height}")
+
     quadrants = subdivide_heightmap(heightmap)
     for name, quad in quadrants.items():
         quad_output = f"{os.path.splitext(output_path)[0]}_{name}.stl"
         print(f"Creating {name} quadrant...")
-        mesh = heightmap_to_mesh(quad, scale_x, scale_y, scale_z, wall_height)
+        mesh = heightmap_to_mesh(quad, scale_x, scale_y, scale_z, min_height)
         mesh.save(quad_output)
         print(f"Saved {quad_output}")
     return True
@@ -111,7 +152,7 @@ def main():
     parser.add_argument('--scale-x', type=float, default=1.0, help='X-axis scaling (default: 1.0)')
     parser.add_argument('--scale-y', type=float, default=1.0, help='Y-axis scaling (default: 1.0)')
     parser.add_argument('--scale-z', type=float, default=1.0, help='Z-axis scaling for height (default: 1.0)')
-    parser.add_argument('--wall-height', type=float, default=10.0, help='Height of walls below terrain (default: 10.0)')
+    parser.add_argument('--wall-height', type=float, default=6.0, help='Height of walls below terrain (default: 10.0)')
     args = parser.parse_args()
 
     if not convert_tiff_to_stl(args.input, args.output, args.scale_x, args.scale_y, args.scale_z, args.wall_height):
