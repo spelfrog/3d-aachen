@@ -32,6 +32,10 @@ def heightmap_to_mesh(heightmap, scale_x, scale_y, scale_z, wall_height):
     """Converts heightmap to 3D mesh with walls and bottom."""
     height, width = heightmap.shape
     min_height = np.min(heightmap) * scale_z - wall_height
+    # round the minimum height to a multiple of 5
+    min_height = np.floor(min_height / 5) * 5
+    print(f"Minimum height to: {min_height}")
+
 
     # Generate vertices
     vertices = [
