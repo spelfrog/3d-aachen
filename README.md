@@ -1,6 +1,18 @@
 # TIFF to STL Converter
 
-This program converts TIFF heightmaps to 4 STL files, each representing a quadrant of the input heightmap.
+This program converts TIFF heightmaps to 3D STL files. The input is automatically subdivided into 4 quadrants, each saved as a separate STL file with walls, bottom, and embossed text labels.
+
+## Features
+
+- Converts TIFF heightmaps to 4 separate STL files (quadrants)
+- Preprocesses heightmaps to smooth out pixel errors
+- Creates complete 3D models with:
+  - Terrain surface from heightmap
+  - Walls around the perimeter
+  - Bottom surface with embossed text showing:
+    - Scale dimensions (e.g., 500x500m)
+    - Original filename
+    - Quadrant section (top_left, top_right, bottom_left, bottom_right)
 
 ## Installation
 
@@ -14,40 +26,19 @@ pip install -r requirements.txt
 python heightmap_to_stl.py input.tiff output.stl
 ```
 
-### Parameters
-
-- `--scale-x`: X-axis scaling (default: 1.0)
-- `--scale-y`: Y-axis scaling (default: 1.0)  
-- `--scale-z`: Z-axis scaling for height values (default: 1.0)
-- `--wall-height`: Height of walls below terrain (default: 10.0)
-
-### Features
-
-- Converts TIFF heightmaps to 4 STL files
-- Each STL file represents one quadrant of the input heightmap:
-  - `output_top_left.stl`
-  - `output_top_right.stl`
-  - `output_bottom_left.stl`
-  - `output_bottom_right.stl`
-- Creates complete closed meshes with walls and bottom for 3D printing
-- Supports scaling for all three axes
-- Configurable wall height for proper 3D printing support
-
 ### Example
 
 ```bash
-python heightmap_to_stl.py heightmap.tiff terrain.stl --scale-x 0.1 --scale-y 0.1 --scale-z 0.01 --wall-height 5.0
+python heightmap_to_stl.py heightmap.tiff terrain.stl
 ```
 
-This will create:
-- `terrain_top_left.stl`
-- `terrain_top_right.stl`
-- `terrain_bottom_left.stl`
-- `terrain_bottom_right.stl`
+This will create 4 files:
+- terrain_top_left.stl
+- terrain_top_right.stl  
+- terrain_bottom_left.stl
+- terrain_bottom_right.stl
 
-Each model will be a complete closed mesh suitable for 3D printing with walls extending below the terrain and a flat bottom.
-
-```python
+Each file contains a complete 3D model with walls, bottom, and embossed text identification suitable for 3D printing.
 import numpy as np
 from PIL import Image
 from stl import mesh
@@ -70,7 +61,7 @@ def read_tiff_heightmap(filepath):
         print(f"Error reading TIFF file: {e}")
         return None
 
-def heightmap_to_mesh(heightmap, scale_x=1.0, scale_y=1.0, scale_z=1.0, wall_height=0.0):
+def heightmap_to_mesh(heightmap, scale_x=1.0, scale_y=1.0, scale_z=1.0):
     """Converts heightmap to 3D mesh."""
     height, width = heightmap.shape
     
@@ -85,11 +76,6 @@ def heightmap_to_mesh(heightmap, scale_x=1.0, scale_y=1.0, scale_z=1.0, wall_hei
             world_x = x * scale_x
             world_y = y * scale_y
             world_z = heightmap[y, x] * scale_z
-            
-            # Add wall height for bottom vertices
-            if wall_height > 0 and (x == 0 or y == 0 or x == width - 1 or y == height - 1):
-                world_z -= wall_height
-            
             vertices.append([world_x, world_y, world_z])
     
     vertices = np.array(vertices)
@@ -117,7 +103,7 @@ def heightmap_to_mesh(heightmap, scale_x=1.0, scale_y=1.0, scale_z=1.0, wall_hei
     
     return stl_mesh
 
-def convert_tiff_to_stl(input_path, output_path, scale_x=1.0, scale_y=1.0, scale_z=1.0, subdivide=False, wall_height=0.0):
+def convert_tiff_to_stl(input_path, output_path, scale_x=1.0, scale_y=1.0, scale_z=1.0):
     """Main function for converting TIFF to STL."""
     print(f"Reading TIFF file: {input_path}")
     heightmap = read_tiff_heightmap(input_path)
@@ -128,28 +114,13 @@ def convert_tiff_to_stl(input_path, output_path, scale_x=1.0, scale_y=1.0, scale
     print(f"Heightmap read: {heightmap.shape[1]}x{heightmap.shape[0]} pixels")
     print(f"Height range: {heightmap.min()} - {heightmap.max()}")
     
-    # Subdivide heightmap into 4 quadrants
-    mid_y = heightmap.shape[0] // 2
-    mid_x = heightmap.shape[1] // 2
+    print("Creating 3D mesh...")
+    stl_mesh = heightmap_to_mesh(heightmap, scale_x, scale_y, scale_z)
     
-    quadrants = {
-        "top_left": heightmap[:mid_y, :mid_x],
-        "top_right": heightmap[:mid_y, mid_x:],
-        "bottom_left": heightmap[mid_y:, :mid_x],
-        "bottom_right": heightmap[mid_y:, mid_x:]
-    }
+    print(f"Saving STL file: {output_path}")
+    stl_mesh.save(output_path)
     
-    for name, quad in quadrants.items():
-        # Define output path for each quadrant
-        quad_output_path = output_path.replace(".stl", f"_{name}.stl")
-        print(f"Creating 3D mesh for {name} quadrant...")
-        stl_mesh = heightmap_to_mesh(quad, scale_x, scale_y, scale_z, wall_height)
-        
-        print(f"Saving STL file: {quad_output_path}")
-        stl_mesh.save(quad_output_path)
-        
-        print(f"{name.capitalize()} quadrant conversion complete! Mesh has {len(stl_mesh.vectors)} triangles.")
-    
+    print(f"Conversion complete! Mesh has {len(stl_mesh.vectors)} triangles.")
     return True
 
 def main():
@@ -159,7 +130,6 @@ def main():
     parser.add_argument('--scale-x', type=float, default=1.0, help='X-axis scaling (default: 1.0)')
     parser.add_argument('--scale-y', type=float, default=1.0, help='Y-axis scaling (default: 1.0)')
     parser.add_argument('--scale-z', type=float, default=1.0, help='Z-axis scaling for height (default: 1.0)')
-    parser.add_argument('--wall-height', type=float, default=0.0, help='Height of walls below terrain (default: 10.0)')
     
     args = parser.parse_args()
     
@@ -168,12 +138,10 @@ def main():
         args.output, 
         args.scale_x, 
         args.scale_y, 
-        args.scale_z,
-        args.wall_height
+        args.scale_z
     )
     
     sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
     main()
-```
