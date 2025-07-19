@@ -92,6 +92,14 @@ The program uses ETRS89 UTM coordinates. The tile coordinates correspond to the 
 
 Downloaded files are cached in `~/.cache/aachen-3d/` to avoid unnecessary re-downloads.
 
+## Data Source & License
+
+This program is based on data provided by **Landesvermessung NRW** (State Survey Office of North Rhine-Westphalia). We gratefully acknowledge their contribution in making high-quality elevation data freely available.
+
+The Landesvermessung NRW produces comprehensive Digital Surface Models (DOM) of the earth's surface including vegetation, buildings, and temporary objects using aircraft-based laser scanning technology.
+
+For more information, visit: [OpenGeoData NRW](https://www.opengeodata.nrw.de/)
+
 ## Deactivating Virtual Environment
 
 ```bash
