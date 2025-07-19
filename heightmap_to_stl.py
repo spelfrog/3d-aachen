@@ -193,13 +193,17 @@ def generate_faces(width, height, offset=0):
             faces.extend([[v0, v1, v2], [v1, v3, v2]])
     return faces
 
-def heightmap_to_mesh(heightmap, filename, quadrant_name):
+def heightmap_to_mesh(heightmap, filename, quadrant_name, base_height_override=None):
     """Converts heightmap to 3D mesh with walls, bottom, and embossed text."""
     height, width = heightmap.shape
 
-    # Calculate base height (rounded)
-    base_height = round(np.min(heightmap))
-    print(f"Base height: {base_height}")
+    # Calculate base height (rounded) or use override
+    if base_height_override is not None:
+        base_height = base_height_override
+        print(f"Using override base height: {base_height}")
+    else:
+        base_height = round(np.min(heightmap))
+        print(f"Calculated base height: {base_height}")
 
     # Generate terrain vertices
     vertices = []
@@ -334,7 +338,7 @@ def preprocess_heightmap(heightmap):
 
     return processed
 
-def convert_tiff_to_stl_from_coords(tile_east, tile_north, year=2022):
+def convert_tiff_to_stl_from_coords(tile_east, tile_north, year=2022, base_height_override=None):
     """Convert TIFF to STL using coordinates instead of filename."""
     # Find the appropriate filename
     filename = find_file_by_coordinates(tile_east, tile_north, year)
@@ -354,9 +358,9 @@ def convert_tiff_to_stl_from_coords(tile_east, tile_north, year=2022):
     output_path = os.path.join(os.getcwd(), base_name + ".stl")
 
     # Convert using the existing function
-    return convert_tiff_to_stl(local_file_path, output_path)
+    return convert_tiff_to_stl(local_file_path, output_path, base_height_override)
 
-def convert_tiff_to_stl(input_path, output_path):
+def convert_tiff_to_stl(input_path, output_path, base_height_override=None):
     """Main function for converting TIFF to 4 STL files."""
     heightmap = read_tiff_heightmap(input_path)
     if heightmap is None:
@@ -370,7 +374,7 @@ def convert_tiff_to_stl(input_path, output_path):
     for name, quad in quadrants.items():
         quad_output = f"{os.path.splitext(output_path)[0]}_{name}.stl"
         print(f"Creating {name} quadrant...")
-        mesh_obj = heightmap_to_mesh(quad, input_path, name)
+        mesh_obj = heightmap_to_mesh(quad, input_path, name, base_height_override)
         mesh_obj.save(quad_output)
         print(f"Saved {quad_output}")
     return True
@@ -386,23 +390,25 @@ def main():
     coord_parser.add_argument('tile_east', type=int, help='east tile coordinate (ETRS89 UTM)')
     coord_parser.add_argument('tile_north', type=int, help='north tile coordinate (ETRS89 UTM)')
     coord_parser.add_argument('--year', type=int, default=2022, help='Year (default: 2022)')
+    coord_parser.add_argument('--base-height', type=float, help='Override base height (meters)')
 
     # File-based input (legacy)
     file_parser = subparsers.add_parser('file', help='Use local file')
     file_parser.add_argument('input', help='Path to TIFF input file')
+    file_parser.add_argument('--base-height', type=float, help='Override base height (meters)')
 
     args = parser.parse_args()
 
     if args.mode == 'coords':
         success = convert_tiff_to_stl_from_coords(
             args.tile_east, args.tile_north,
-            args.year
+            args.year, getattr(args, 'base_height', None)
         )
     elif args.mode == 'file':
         # Determine output path automatically
         base_name = os.path.splitext(os.path.basename(args.input))[0]
         output_path = os.path.join(os.getcwd(), base_name + ".stl")
-        success = convert_tiff_to_stl(args.input, output_path)
+        success = convert_tiff_to_stl(args.input, output_path, getattr(args, 'base_height', None))
     else:
         parser.print_help()
         return
