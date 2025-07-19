@@ -1,18 +1,15 @@
 # TIFF to STL Converter
 
-This program converts TIFF heightmaps to 3D STL files. The input is automatically subdivided into 4 quadrants, each saved as a separate STL file with walls, bottom, and embossed text labels.
+This program converts TIFF heightmaps to 3D STL files. The input is automatically subdivided into 4 quadrants, each saved as a separate STL file with identifying text labels.
 
 ## Features
 
 - Converts TIFF heightmaps to 4 separate STL files (quadrants)
 - Preprocesses heightmaps to smooth out pixel errors
-- Creates complete 3D models with:
-  - Terrain surface from heightmap
-  - Walls around the perimeter
-  - Bottom surface with embossed text showing:
-    - Scale dimensions (e.g., 500x500m)
-    - Original filename
-    - Quadrant section (top_left, top_right, bottom_left, bottom_right)
+- Adds text labels at the bottom of each model showing:
+  - Scale dimensions (e.g., 500x500m)
+  - Original filename
+  - Quadrant section (top_left, top_right, bottom_left, bottom_right)
 
 ## Installation
 
@@ -23,22 +20,20 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-python heightmap_to_stl.py input.tiff output.stl
+python heightmap_to_stl.py file input.tiff
 ```
-
-### Example
-
+or
 ```bash
-python heightmap_to_stl.py heightmap.tiff terrain.stl
+python heightmap_to_stl.py coords <easting> <northing>
 ```
 
-This will create 4 files:
-- terrain_top_left.stl
-- terrain_top_right.stl  
-- terrain_bottom_left.stl
-- terrain_bottom_right.stl
+The output STL files will be created in the current working directory and named after the input file or downloaded tile, e.g.:
+- dom1_32_294_5628_1_nw_2022_top_left.stl
+- dom1_32_294_5628_1_nw_2022_top_right.stl
+- dom1_32_294_5628_1_nw_2022_bottom_left.stl
+- dom1_32_294_5628_1_nw_2022_bottom_right.stl
 
-Each file contains a complete 3D model with walls, bottom, and embossed text identification suitable for 3D printing.
+Each file contains a text label at the bottom identifying the scale, filename, and quadrant.
 import numpy as np
 from PIL import Image
 from stl import mesh
