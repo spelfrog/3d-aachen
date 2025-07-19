@@ -100,6 +100,10 @@ The Landesvermessung NRW produces comprehensive Digital Surface Models (DOM) of 
 
 For more information, visit: [OpenGeoData NRW](https://www.opengeodata.nrw.de/)
 
+## License
+
+This software is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
 ## Deactivating Virtual Environment
 
 ```bash
