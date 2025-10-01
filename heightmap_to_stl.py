@@ -9,11 +9,13 @@ import json
 from pathlib import Path
 from font import char_patterns
 
+
 def get_cache_dir():
     """Get or create cache directory."""
     cache_dir = Path.home() / ".cache" / "aachen-3d"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
+
 
 def download_file_index():
     """Download and cache the file index from OpenGeoData NRW."""
@@ -22,8 +24,8 @@ def download_file_index():
 
     # Check if cached index exists and is recent (less than 24 hours old)
     if index_cache.exists():
-            with open(index_cache, 'r') as f:
-                return json.load(f)
+        with open(index_cache, 'r') as f:
+            return json.load(f)
 
     print("Downloading file index from OpenGeoData NRW...")
     url = "https://www.opengeodata.nrw.de/produkte/geobasis/hm/dom1_tiff/dom1_tiff/index.json"
@@ -43,12 +45,13 @@ def download_file_index():
         print(f"Error downloading file index: {e}")
         return None
 
+
 def find_file_by_coordinates(tile_east, tile_north, year=2022):
     """Find the filename for given coordinates."""
 
-
     filename = f"dom1_32_{tile_east}_{tile_north}_1_nw_{year}.tif"
     return filename
+
 
 def download_tiff_file(filename):
     """Download and cache a TIFF file."""
@@ -79,6 +82,7 @@ def download_tiff_file(filename):
         print(f"Error downloading {filename}: {e}")
         return None
 
+
 def verify_file_exists(filename):
     """Verify that a file exists in the online index."""
     index_data = download_file_index()
@@ -94,6 +98,7 @@ def verify_file_exists(filename):
 
     return False
 
+
 def parse_filename_info(filename):
     """
     Parses filename format: dom1_32_294_5628_1_nw_2022.tif
@@ -105,11 +110,11 @@ def parse_filename_info(filename):
     if len(parts) >= 6:
         return {
             'dataset': parts[0],  # dom1
-            'zone': parts[1],     # 32
+            'zone': parts[1],  # 32
             'easting': parts[2],  # 294 (in km)
-            'northing': parts[3], # 5628 (in km)
-            'resolution': parts[4], # 1
-            'quadrant': parts[5],   # nw
+            'northing': parts[3],  # 5628 (in km)
+            'resolution': parts[4],  # 1
+            'quadrant': parts[5],  # nw
             'year': parts[6] if len(parts) > 6 else 'unknown'  # 2022
         }
     else:
@@ -124,6 +129,7 @@ def parse_filename_info(filename):
             'year': 'unknown'
         }
 
+
 def format_coordinates(info):
     """Format coordinate information for display."""
     try:
@@ -132,6 +138,7 @@ def format_coordinates(info):
         return f"E{easting_km}km N{northing_km}km"
     except (ValueError, TypeError):
         return f"E{info['easting']} N{info['northing']}"
+
 
 def read_tiff_heightmap(filepath):
     """Reads TIFF file and returns height data as numpy array."""
@@ -145,11 +152,10 @@ def read_tiff_heightmap(filepath):
         print(f"Error reading TIFF file: {e}")
         return None
 
-def create_text_pattern(text_lines, width, height, char_width=16, line_spacing=24):
+
+def create_text_pattern(text_lines, width, height, char_width=18, line_spacing=24, scale=2):
     """Creates a 2D pattern for multi-line text on the bottom surface."""
     pattern = np.zeros((height, width))
-
-    # Higher resolution character patterns (8x12 pixels per character)
 
     # Calculate text block dimensions for centering
     max_line_length = max(len(line) for line in text_lines)
@@ -168,18 +174,25 @@ def create_text_pattern(text_lines, width, height, char_width=16, line_spacing=2
         for i, char in enumerate(line.upper()):
             if char in char_patterns:
                 char_pattern = char_patterns[char]
+                # Scale up the character pattern
                 for row_idx, row in enumerate(char_pattern):
                     for col_idx, pixel in enumerate(row):
-                        y_pos = current_y + row_idx
-                        x_pos = current_x + col_idx
-                        if 0 <= y_pos < height and 0 <= x_pos < width and pixel:
-                            pattern[y_pos, x_pos] = 1
+                        if not pixel:
+                            continue
+                            # Draw scaled pixel blocks
+                        for dy in range(scale):
+                            for dx in range(scale):
+                                y_pos = current_y + row_idx * scale + dy
+                                x_pos = current_x + col_idx * scale + dx
+                                if 0 <= y_pos < height and 0 <= x_pos < width:
+                                    pattern[y_pos, x_pos] = 1
 
             current_x += char_width
             if current_x >= width - char_width:
                 break
 
     return pattern
+
 
 def generate_faces(width, height, offset=0):
     """Generates triangle faces for a grid."""
@@ -194,6 +207,7 @@ def generate_faces(width, height, offset=0):
             )
             faces.extend([[v0, v1, v2], [v1, v3, v2]])
     return faces
+
 
 def heightmap_to_mesh(heightmap, filename, quadrant_name, base_height_override=None):
     """Converts heightmap to 3D mesh with walls, bottom, and embossed text."""
@@ -230,7 +244,7 @@ def heightmap_to_mesh(heightmap, filename, quadrant_name, base_height_override=N
 
     text_pattern = create_text_pattern(text_lines, width, height)
 
-    text_height = 2.0  # Height of embossed text
+    text_height = 3.0  # Height of embossed text
     for y in range(height):
         for x in range(width):
             z_offset = text_pattern[y, x] * text_height
@@ -293,6 +307,7 @@ def heightmap_to_mesh(heightmap, filename, quadrant_name, base_height_override=N
 
     return stl_mesh
 
+
 def subdivide_heightmap(heightmap):
     """Subdivides heightmap into 4 quadrants."""
     mid_h, mid_w = heightmap.shape[0] // 2, heightmap.shape[1] // 2
@@ -302,6 +317,7 @@ def subdivide_heightmap(heightmap):
         'bottom_left': heightmap[mid_h:, :mid_w],
         'bottom_right': heightmap[mid_h:, mid_w:]
     }
+
 
 def preprocess_heightmap(heightmap):
     """
@@ -316,7 +332,7 @@ def preprocess_heightmap(heightmap):
             # Extract the 8 neighbors
             neighbors = [
                 heightmap[y - 1, x - 1], heightmap[y - 1, x], heightmap[y - 1, x + 1],
-                heightmap[y, x - 1],                     heightmap[y, x + 1],
+                heightmap[y, x - 1], heightmap[y, x + 1],
                 heightmap[y + 1, x - 1], heightmap[y + 1, x], heightmap[y + 1, x + 1]
             ]
             center = heightmap[y, x]
@@ -331,7 +347,7 @@ def preprocess_heightmap(heightmap):
             avg_neighbors = np.mean(neighbors)
 
             # Replace the center pixel if it significantly differs from the neighbors
-            #if abs(center - avg_neighbors) > 2:
+            # if abs(center - avg_neighbors) > 2:
             processed[y, x] = avg_neighbors
             number_of_fixed_pixels += 1
 
@@ -339,6 +355,7 @@ def preprocess_heightmap(heightmap):
         print(f"Preprocessed {number_of_fixed_pixels} pixels to smooth out errors.")
 
     return processed
+
 
 def convert_tiff_to_stl_from_coords(tile_east, tile_north, year=2022, base_height_override=None):
     """Convert TIFF to STL using coordinates instead of filename."""
@@ -362,6 +379,7 @@ def convert_tiff_to_stl_from_coords(tile_east, tile_north, year=2022, base_heigh
     # Convert using the existing function
     return convert_tiff_to_stl(local_file_path, output_path, base_height_override)
 
+
 def convert_tiff_to_stl(input_path, output_path, base_height_override=None):
     """Main function for converting TIFF to 4 STL files."""
     heightmap = read_tiff_heightmap(input_path)
@@ -380,6 +398,7 @@ def convert_tiff_to_stl(input_path, output_path, base_height_override=None):
         mesh_obj.save(quad_output)
         print(f"Saved {quad_output}")
     return True
+
 
 def main():
     parser = argparse.ArgumentParser(description='Converts TIFF heightmaps to 4 STL files.')
@@ -418,6 +437,7 @@ def main():
     if not success:
         import sys
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
