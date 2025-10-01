@@ -138,6 +138,8 @@ def read_tiff_heightmap(filepath):
     try:
         image = Image.open(filepath)
         heightmap = np.asarray(image)
+        # Flip vertically to correct orientation
+        heightmap = np.flipud(heightmap)
         return heightmap[:, :, 0] if len(heightmap.shape) > 2 else heightmap
     except Exception as e:
         print(f"Error reading TIFF file: {e}")
